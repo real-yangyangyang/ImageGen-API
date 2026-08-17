@@ -1,4 +1,5 @@
-# ImageGen API
+<h1 align="center">ImageGen API</h1>
+
 
 <p align="center">
   <strong>A lightweight Codex skill for image generation through user-configured APIs.</strong>
@@ -207,5 +208,4 @@ python scripts/generate_image.py --clean-outputs
 - `.env.example` should contain placeholders only and is safe to commit.
 - Prompts, model names, and request parameters are sent to the configured API provider or relay.
 - This project does not include telemetry, analytics, or additional callbacks.
-
 
