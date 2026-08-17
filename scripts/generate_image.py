@@ -19,12 +19,13 @@ from typing import Any
 
 
 DEFAULT_BASE_URL = "https://api.openai.com"
+SKILL_DIR = Path(__file__).resolve().parent.parent
 
 
 def _load_dotenv() -> None:
     paths = [
         Path.cwd() / ".env",
-        Path(__file__).resolve().parent.parent / ".env",
+        SKILL_DIR / ".env",
     ]
     for path in dict.fromkeys(paths):
         if not path.exists():
@@ -84,7 +85,58 @@ def _safe_slug(text: str, limit: int = 40) -> str:
 
 def _default_output(prompt: str) -> Path:
     timestamp = time.strftime("%Y%m%d-%H%M%S")
-    return Path("outputs") / f"{timestamp}-{_safe_slug(prompt)}.png"
+    return SKILL_DIR / "outputs" / f"{timestamp}-{_safe_slug(prompt)}.png"
+
+
+def _outputs_dir() -> Path:
+    return SKILL_DIR / "outputs"
+
+
+def _show_paths() -> None:
+    print(json.dumps({
+        "skill_dir": str(SKILL_DIR.resolve()),
+        "outputs_dir": str(_outputs_dir().resolve()),
+        "cwd": str(Path.cwd().resolve()),
+        "dotenv_candidates": [
+            str((Path.cwd() / ".env").resolve()),
+            str((SKILL_DIR / ".env").resolve()),
+        ],
+    }, ensure_ascii=False, indent=2))
+
+
+def _list_outputs() -> None:
+    directory = _outputs_dir()
+    if not directory.exists():
+        print(json.dumps({"outputs_dir": str(directory), "files": []}, ensure_ascii=False, indent=2))
+        return
+
+    files = []
+    for path in sorted(directory.rglob("*")):
+        if path.is_file() and path.name != ".gitkeep":
+            files.append({
+                "path": str(path.resolve()),
+                "bytes": path.stat().st_size,
+                "modified": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(path.stat().st_mtime)),
+            })
+    print(json.dumps({"outputs_dir": str(directory.resolve()), "files": files}, ensure_ascii=False, indent=2))
+
+
+def _clean_outputs() -> None:
+    directory = _outputs_dir()
+    removed = []
+    if directory.exists():
+        for path in sorted(directory.rglob("*"), reverse=True):
+            if path.is_file():
+                if path.name == ".gitkeep":
+                    continue
+                removed.append(str(path.resolve()))
+                path.unlink()
+            elif path.is_dir():
+                try:
+                    path.rmdir()
+                except OSError:
+                    pass
+    print(json.dumps({"outputs_dir": str(directory.resolve()), "removed": removed}, ensure_ascii=False, indent=2))
 
 
 def _parse_extra_json(raw: str | None) -> dict[str, Any]:
@@ -215,18 +267,30 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--endpoint", help="Override request endpoint, for providers that do not use /v1/images/generations.")
     parser.add_argument("--size", default="1024x1024", help="Requested image size.")
     parser.add_argument("--n", type=int, default=1, help="Number of images requested; script saves the first one.")
-    parser.add_argument("--output", type=Path, help="Output image path. Defaults to outputs/<timestamp>-<prompt>.png.")
+    parser.add_argument("--output", type=Path, help="Output image path. Defaults to the skill's outputs/<timestamp>-<prompt>.png.")
     parser.add_argument("--timeout", type=int, default=180, help="HTTP timeout in seconds.")
     parser.add_argument("--response-format", choices=["url", "b64_json"], help="Optional OpenAI-style response_format field.")
     parser.add_argument("--extra-json", help="Provider-specific JSON object merged into the request payload.")
     parser.add_argument("--dry-run", action="store_true", help="Print sanitized request configuration without calling the API.")
     parser.add_argument("--list-models", action="store_true", help="List models exposed by the configured /v1/models endpoint.")
+    parser.add_argument("--list-outputs", action="store_true", help="List generated files in the skill outputs directory.")
+    parser.add_argument("--clean-outputs", action="store_true", help="Delete generated files in the skill outputs directory.")
+    parser.add_argument("--show-paths", action="store_true", help="Show the resolved skill, outputs, cwd, and .env paths.")
     return parser
 
 
 def main() -> int:
     _load_dotenv()
     args = build_parser().parse_args()
+    if args.show_paths:
+        _show_paths()
+        return 0
+    if args.list_outputs:
+        _list_outputs()
+        return 0
+    if args.clean_outputs:
+        _clean_outputs()
+        return 0
     if not args.api_key:
         raise SystemExit("Missing API key. Set IMAGEGEN_API_KEY or OPENAI_API_KEY, or pass --api-key.")
     if args.list_models:
@@ -285,4 +349,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
 

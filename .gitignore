@@ -1,6 +1,7 @@
 .env
 .env.*
 !.env.example
-outputs/
+outputs/*
+!outputs/.gitkeep
 __pycache__/
 *.pyc
