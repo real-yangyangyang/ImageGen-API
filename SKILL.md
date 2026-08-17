@@ -11,9 +11,9 @@ Use this skill to generate images through a user-configured image API. The bundl
 
 1. Collect required runtime settings:
    - Prompt: the exact image prompt to send.
-   - API key: from `IMAGEGEN_API_KEY`, `OPENAI_API_KEY`, or an explicit `--api-key`.
-   - Model: from `IMAGEGEN_MODEL` or an explicit `--model`.
-   - Base URL: optional `IMAGEGEN_BASE_URL`, `OPENAI_BASE_URL`, or `--base-url`.
+   - API key: from `.env`, `IMAGEGEN_API_KEY`, `OPENAI_API_KEY`, or an explicit `--api-key`.
+   - Model: from `.env`, `IMAGEGEN_MODEL`, or an explicit `--model`.
+   - Base URL: optional `.env`, `IMAGEGEN_BASE_URL`, `OPENAI_BASE_URL`, or `--base-url`.
 2. Never write API keys into files, logs, examples, or final messages. Prefer temporary environment variables or command arguments only when the user explicitly supplies them in the session.
 3. Run `scripts/generate_image.py` for the actual API call.
 4. Return the generated file path and, when the host supports images, render the image with Markdown.
@@ -44,6 +44,8 @@ python scripts/generate_image.py \
 Required:
 - `IMAGEGEN_API_KEY` or `OPENAI_API_KEY`, unless `--api-key` is provided.
 - `IMAGEGEN_MODEL`, unless `--model` is provided.
+
+For easiest setup, copy `.env.example` to `.env`, fill in the values, and keep `.env` out of git.
 
 Optional:
 - `IMAGEGEN_BASE_URL` or `OPENAI_BASE_URL`; defaults to `https://api.openai.com`.

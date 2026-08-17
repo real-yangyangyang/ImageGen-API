@@ -4,7 +4,17 @@ The bundled script currently implements an OpenAI-compatible adapter. For native
 
 ## Environment Variables
 
-Use environment variables to avoid repeating credentials in commands:
+For easiest setup, copy `.env.example` to `.env` and fill in your own values:
+
+```dotenv
+IMAGEGEN_API_KEY=your-api-key
+IMAGEGEN_MODEL=your-image-model
+IMAGEGEN_BASE_URL=
+```
+
+The script automatically reads `.env` from the current working directory or the skill directory. Environment variables still work and take priority over `.env` values.
+
+Use shell environment variables when preferred:
 
 ```bash
 export IMAGEGEN_API_KEY="..."
@@ -88,5 +98,6 @@ python scripts/generate_image.py \
 ```
 
 Use the model id exactly as returned by the service. If the advertised model is unavailable for generation, ask the provider for the exact model id, required endpoint, account entitlement, and supported request payload.
+
 
 

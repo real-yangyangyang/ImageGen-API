@@ -21,6 +21,25 @@ from typing import Any
 DEFAULT_BASE_URL = "https://api.openai.com"
 
 
+def _load_dotenv() -> None:
+    paths = [
+        Path.cwd() / ".env",
+        Path(__file__).resolve().parent.parent / ".env",
+    ]
+    for path in dict.fromkeys(paths):
+        if not path.exists():
+            continue
+        for line in path.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#") or "=" not in stripped:
+                continue
+            key, value = stripped.split("=", 1)
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = value
+
+
 def _env_first(*names: str) -> str | None:
     for name in names:
         value = os.environ.get(name)
@@ -206,6 +225,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    _load_dotenv()
     args = build_parser().parse_args()
     if not args.api_key:
         raise SystemExit("Missing API key. Set IMAGEGEN_API_KEY or OPENAI_API_KEY, or pass --api-key.")

@@ -14,7 +14,7 @@ ImageGen API（调用名：`$iga`）是一个轻量级 Codex 生图 skill，用�
 
 - 内置 OpenAI-compatible adapter，支持 `/v1/images/generations` 风格的图片生成接口。
 - 支持 OpenAI-compatible 中转站、自定义 API base URL，以及后续扩展的 provider adapter。
-- 支持通过环境变量或命令参数提供 API key、模型名和 URL。
+- 支持通过 `.env`、环境变量或命令参数提供 API key、模型名和 URL。
 - 支持保存 `b64_json`、图片 URL、data URL 等常见响应格式。
 - 提供模型列表查询，便于确认中转站实际可用的模型 id。
 
@@ -36,23 +36,27 @@ git clone <your-repo-url> "$env:USERPROFILE\.codex\skills\iga"
 
 ### 配置
 
-推荐用环境变量配置：
+最简单的方式是在 skill 目录中复制示例配置文件：
 
 ```bash
-export IMAGEGEN_API_KEY="your-api-key"
-export IMAGEGEN_MODEL="your-image-model"
-export IMAGEGEN_BASE_URL="https://your-relay.example.com"
+cp .env.example .env
 ```
 
 Windows PowerShell：
 
 ```powershell
-$env:IMAGEGEN_API_KEY = "your-api-key"
-$env:IMAGEGEN_MODEL = "your-image-model"
-$env:IMAGEGEN_BASE_URL = "https://your-relay.example.com"
+Copy-Item .env.example .env
 ```
 
-`IMAGEGEN_BASE_URL` 可选；不设置时默认使用 `https://api.openai.com`。
+然后编辑 `.env`：
+
+```dotenv
+IMAGEGEN_API_KEY=your-api-key
+IMAGEGEN_MODEL=your-image-model
+IMAGEGEN_BASE_URL=
+```
+
+`IMAGEGEN_BASE_URL` 可选；不设置或留空时默认使用 `https://api.openai.com`。脚本会自动读取 skill 目录或当前工作目录下的 `.env`。
 
 URL 可以填写以下任一形式：
 
@@ -95,7 +99,7 @@ python scripts/generate_image.py \
 
 - `--prompt`：图片提示词。
 - `--model`：图片模型名称；未提供时读取 `IMAGEGEN_MODEL`。
-- `--api-key`：API key；优先建议使用环境变量。
+- `--api-key`：API key；优先建议使用 `.env` 或环境变量。
 - `--base-url`：API base URL 或完整图片生成 endpoint。
 - `--size`：图片尺寸，默认 `1024x1024`。
 - `--output`：输出图片路径。
@@ -130,9 +134,9 @@ python scripts/generate_image.py \
 
 ### 隐私与安全
 
-- 不要提交 API key。
+- 不要提交 API key，也不要提交真实 `.env`。
 - 不要把密钥写入 `SKILL.md`、`README.md` 或示例文件。
-- 推荐使用环境变量管理密钥。
+- 推荐使用 `.env` 或环境变量管理密钥；`.env.example` 只放占位值。
 - Prompt、模型名和请求参数会发送给你配置的 API 服务商或中转站。
 - 生成图片保存在本地；`outputs/` 默认已被 `.gitignore` 排除。
 - 本仓库不包含遥测、统计或额外回传逻辑。
@@ -149,7 +153,7 @@ Users configure their own API key, model name, and optional relay/base URL. This
 
 - Includes a built-in OpenAI-compatible adapter for `/v1/images/generations` style image APIs.
 - Supports OpenAI-compatible relays, custom API base URLs, and future provider adapters.
-- Reads API key, model, and URL from environment variables or command-line arguments.
+- Reads API key, model, and URL from `.env`, environment variables, or command-line arguments.
 - Saves common response formats including `b64_json`, image URLs, and data URLs.
 - Can query the configured service for exposed model ids.
 
@@ -171,23 +175,27 @@ Restart Codex after installing so the skill can be discovered.
 
 ### Configure
 
-Environment variables are recommended:
+The easiest setup is to copy the example environment file inside the skill directory:
 
 ```bash
-export IMAGEGEN_API_KEY="your-api-key"
-export IMAGEGEN_MODEL="your-image-model"
-export IMAGEGEN_BASE_URL="https://your-relay.example.com"
+cp .env.example .env
 ```
 
 Windows PowerShell:
 
 ```powershell
-$env:IMAGEGEN_API_KEY = "your-api-key"
-$env:IMAGEGEN_MODEL = "your-image-model"
-$env:IMAGEGEN_BASE_URL = "https://your-relay.example.com"
+Copy-Item .env.example .env
 ```
 
-`IMAGEGEN_BASE_URL` is optional; if omitted, the script defaults to `https://api.openai.com`.
+Then edit `.env`:
+
+```dotenv
+IMAGEGEN_API_KEY=your-api-key
+IMAGEGEN_MODEL=your-image-model
+IMAGEGEN_BASE_URL=
+```
+
+`IMAGEGEN_BASE_URL` is optional; if omitted or left empty, the script defaults to `https://api.openai.com`. The script automatically reads `.env` from the skill directory or the current working directory.
 
 The URL may use any of these forms:
 
@@ -230,7 +238,7 @@ python scripts/generate_image.py \
 
 - `--prompt`: Image prompt.
 - `--model`: Image model name; defaults to `IMAGEGEN_MODEL`.
-- `--api-key`: API key; environment variables are recommended.
+- `--api-key`: API key; `.env` or environment variables are recommended.
 - `--base-url`: API base URL or full image-generation endpoint.
 - `--size`: Image size, default `1024x1024`.
 - `--output`: Output image path.
@@ -265,11 +273,13 @@ Use the exact model id returned by the service.
 
 ### Privacy And Security
 
-- Do not commit API keys.
+- Do not commit API keys or a real `.env` file.
 - Do not put secrets in `SKILL.md`, `README.md`, or examples.
-- Prefer environment variables for credentials.
+- Prefer `.env` or environment variables for credentials; `.env.example` should contain placeholders only.
 - Prompts, model names, and request parameters are sent to the configured API provider or relay.
 - Generated images are saved locally; `outputs/` is ignored by default.
 - This repository does not include telemetry, analytics, or additional callbacks.
+
+
 
 
