@@ -1,6 +1,4 @@
 interface:
   display_name: "ImageGen API"
-  short_description: "Call image models through configurable APIs"
+  short_description: "Call image models through named API profiles"
   default_prompt: "Use $iga to generate an image from this prompt."
-
-

@@ -21,6 +21,13 @@ from typing import Any
 DEFAULT_BASE_URL = "https://api.openai.com"
 SKILL_NAME = "iga"
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
+PROFILE_PREFIX = "IMAGEGEN_PROFILE_"
+PROFILE_FIELDS = {
+    "API_KEY": "api_key",
+    "MODEL": "model",
+    "BASE_URL": "base_url",
+    "ENDPOINT": "endpoint",
+}
 
 
 def _codex_home() -> Path:
@@ -77,6 +84,50 @@ def _env_first(*names: str) -> str | None:
     return None
 
 
+def _profile_env_name(profile: str, field: str) -> str:
+    safe_profile = re.sub(r"[^A-Za-z0-9]+", "_", profile).strip("_").upper()
+    return f"{PROFILE_PREFIX}{safe_profile}_{field}"
+
+
+def _profile_from_env(profile: str | None) -> dict[str, str]:
+    if not profile:
+        return {}
+
+    config: dict[str, str] = {}
+    for env_field, key in PROFILE_FIELDS.items():
+        value = os.environ.get(_profile_env_name(profile, env_field))
+        if value:
+            config[key] = value
+    return config
+
+
+def _profile_names_from_env() -> list[str]:
+    names: set[str] = set()
+    suffixes = tuple(f"_{field}" for field in PROFILE_FIELDS)
+    for key in os.environ:
+        if not key.startswith(PROFILE_PREFIX):
+            continue
+        remainder = key[len(PROFILE_PREFIX):]
+        for suffix in suffixes:
+            if remainder.endswith(suffix):
+                names.add(remainder[:-len(suffix)].lower())
+                break
+    return sorted(names)
+
+
+def _resolve_setting(cli_value: str | None, profile_config: dict[str, str], profile_key: str, *env_names: str, default: str | None = None) -> str | None:
+    if cli_value:
+        return cli_value
+    profile_value = profile_config.get(profile_key)
+    if profile_value:
+        return profile_value
+    return _env_first(*env_names) or default
+
+
+def _selected_profile(cli_profile: str | None) -> str | None:
+    return cli_profile or _env_first("IMAGEGEN_PROFILE", "IMAGEGEN_DEFAULT_PROFILE")
+
+
 def _redact(value: str | None) -> str:
     if not value:
         return "<unset>"
@@ -113,63 +164,21 @@ def _safe_slug(text: str, limit: int = 40) -> str:
 
 def _default_output(prompt: str) -> Path:
     timestamp = time.strftime("%Y%m%d-%H%M%S")
-    return SKILL_DIR / "outputs" / f"{timestamp}-{_safe_slug(prompt)}.png"
-
-
-def _outputs_dir() -> Path:
-    configured = _env_first("IGA_OUTPUT_DIR")
-    if configured:
-        return Path(configured).expanduser()
-    return SKILL_DIR / "outputs"
+    return Path.cwd() / "outputs" / f"{timestamp}-{_safe_slug(prompt)}.png"
 
 
 def _show_paths() -> None:
     print(json.dumps({
         "skill_dir": str(SKILL_DIR.resolve()),
         "script_dir": str(SCRIPT_DIR.resolve()),
-        "outputs_dir": str(_outputs_dir().resolve()),
         "cwd": str(Path.cwd().resolve()),
         "skill_dir_candidates": [str(path.resolve()) for path in _candidate_skill_dirs()],
         "dotenv_candidates": [
             str((Path.cwd() / ".env").resolve()),
             str((SKILL_DIR / ".env").resolve()),
         ],
+        "configured_profiles": _profile_names_from_env(),
     }, ensure_ascii=False, indent=2))
-
-
-def _list_outputs() -> None:
-    directory = _outputs_dir()
-    if not directory.exists():
-        print(json.dumps({"outputs_dir": str(directory), "files": []}, ensure_ascii=False, indent=2))
-        return
-
-    files = []
-    for path in sorted(directory.rglob("*")):
-        if path.is_file() and path.name != ".gitkeep":
-            files.append({
-                "path": str(path.resolve()),
-                "bytes": path.stat().st_size,
-                "modified": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(path.stat().st_mtime)),
-            })
-    print(json.dumps({"outputs_dir": str(directory.resolve()), "files": files}, ensure_ascii=False, indent=2))
-
-
-def _clean_outputs() -> None:
-    directory = _outputs_dir()
-    removed = []
-    if directory.exists():
-        for path in sorted(directory.rglob("*"), reverse=True):
-            if path.is_file():
-                if path.name == ".gitkeep":
-                    continue
-                removed.append(str(path.resolve()))
-                path.unlink()
-            elif path.is_dir():
-                try:
-                    path.rmdir()
-                except OSError:
-                    pass
-    print(json.dumps({"outputs_dir": str(directory.resolve()), "removed": removed}, ensure_ascii=False, indent=2))
 
 
 def _parse_extra_json(raw: str | None) -> dict[str, Any]:
@@ -294,21 +303,21 @@ def _with_suffix(path: Path, content_type: str) -> Path:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--prompt", help="Text prompt for image generation.")
-    parser.add_argument("--model", default=_env_first("IMAGEGEN_MODEL"), help="Image model name.")
-    parser.add_argument("--api-key", default=_env_first("IMAGEGEN_API_KEY", "OPENAI_API_KEY"), help="API key.")
-    parser.add_argument("--base-url", default=_env_first("IMAGEGEN_BASE_URL", "OPENAI_BASE_URL", "OPENAI_API_BASE") or DEFAULT_BASE_URL, help="API base URL or relay URL.")
+    parser.add_argument("--profile", help="Named IMAGEGEN_PROFILE_<NAME>_* configuration to use.")
+    parser.add_argument("--model", help="Image model name.")
+    parser.add_argument("--api-key", help="API key.")
+    parser.add_argument("--base-url", help="API base URL or relay URL.")
     parser.add_argument("--endpoint", help="Override request endpoint, for providers that do not use /v1/images/generations.")
     parser.add_argument("--size", default="1024x1024", help="Requested image size.")
     parser.add_argument("--n", type=int, default=1, help="Number of images requested; script saves the first one.")
-    parser.add_argument("--output", type=Path, help="Output image path. Defaults to the skill's outputs/<timestamp>-<prompt>.png.")
+    parser.add_argument("--output", type=Path, help="Output image path. Defaults to ./outputs/<timestamp>-<prompt>.png in the current working directory.")
     parser.add_argument("--timeout", type=int, default=180, help="HTTP timeout in seconds.")
     parser.add_argument("--response-format", choices=["url", "b64_json"], help="Optional OpenAI-style response_format field.")
     parser.add_argument("--extra-json", help="Provider-specific JSON object merged into the request payload.")
     parser.add_argument("--dry-run", action="store_true", help="Print sanitized request configuration without calling the API.")
     parser.add_argument("--list-models", action="store_true", help="List models exposed by the configured /v1/models endpoint.")
-    parser.add_argument("--list-outputs", action="store_true", help="List generated files in the skill outputs directory.")
-    parser.add_argument("--clean-outputs", action="store_true", help="Delete generated files in the skill outputs directory.")
-    parser.add_argument("--show-paths", action="store_true", help="Show the resolved skill, outputs, cwd, and .env paths.")
+    parser.add_argument("--list-profiles", action="store_true", help="List configured IMAGEGEN_PROFILE_<NAME>_* profile names.")
+    parser.add_argument("--show-paths", action="store_true", help="Show the resolved skill, cwd, and .env paths.")
     return parser
 
 
@@ -318,31 +327,40 @@ def main() -> int:
     if args.show_paths:
         _show_paths()
         return 0
-    if args.list_outputs:
-        _list_outputs()
+    if args.list_profiles:
+        print(json.dumps({"profiles": _profile_names_from_env()}, ensure_ascii=False, indent=2))
         return 0
-    if args.clean_outputs:
-        _clean_outputs()
-        return 0
-    if not args.api_key:
+
+    profile = _selected_profile(args.profile)
+    profile_config = _profile_from_env(profile)
+    api_key = _resolve_setting(args.api_key, profile_config, "api_key", "IMAGEGEN_API_KEY", "OPENAI_API_KEY")
+    model = _resolve_setting(args.model, profile_config, "model", "IMAGEGEN_MODEL")
+    base_url = _resolve_setting(args.base_url, profile_config, "base_url", "IMAGEGEN_BASE_URL", "OPENAI_BASE_URL", "OPENAI_API_BASE", default=DEFAULT_BASE_URL)
+    endpoint = _resolve_setting(args.endpoint, profile_config, "endpoint")
+
+    if profile and not profile_config:
+        known = ", ".join(_profile_names_from_env()) or "<none>"
+        raise SystemExit(f"Profile '{profile}' is not configured. Known profiles: {known}")
+    if not api_key:
         raise SystemExit("Missing API key. Set IMAGEGEN_API_KEY or OPENAI_API_KEY, or pass --api-key.")
     if args.list_models:
-        models_url = _models_endpoint(args.base_url)
+        models_url = _models_endpoint(base_url)
         if args.dry_run:
             print(json.dumps({
+                "profile": profile,
                 "url": models_url,
-                "api_key": _redact(args.api_key),
+                "api_key": _redact(api_key),
             }, ensure_ascii=False, indent=2))
             return 0
-        _print_models(_get_json(models_url, args.api_key, args.timeout))
+        _print_models(_get_json(models_url, api_key, args.timeout))
         return 0
     if not args.prompt:
         raise SystemExit("Missing prompt. Pass --prompt, or use --list-models to inspect provider models.")
-    if not args.model:
+    if not model:
         raise SystemExit("Missing model. Set IMAGEGEN_MODEL or pass --model.")
 
     payload: dict[str, Any] = {
-        "model": args.model,
+        "model": model,
         "prompt": args.prompt,
         "size": args.size,
         "n": args.n,
@@ -351,19 +369,20 @@ def main() -> int:
         payload["response_format"] = args.response_format
     payload.update(_parse_extra_json(args.extra_json))
 
-    url = _endpoint(args.base_url, args.endpoint)
+    url = _endpoint(base_url, endpoint)
     output = args.output or _default_output(args.prompt)
 
     if args.dry_run:
         print(json.dumps({
+            "profile": profile,
             "url": url,
-            "api_key": _redact(args.api_key),
+            "api_key": _redact(api_key),
             "payload": payload,
             "output": str(output),
         }, ensure_ascii=False, indent=2))
         return 0
 
-    result = _request_json(url, args.api_key, payload, args.timeout)
+    result = _request_json(url, api_key, payload, args.timeout)
     image = _first_image(result)
     data, content_type = _bytes_from_response(image, args.timeout)
     output = _with_suffix(output, content_type)
@@ -374,13 +393,12 @@ def main() -> int:
         "output": str(output.resolve()),
         "bytes": len(data),
         "content_type": content_type or "unknown",
-        "model": args.model,
-        "base_url": args.base_url,
+        "model": model,
+        "base_url": base_url,
+        "profile": profile,
     }, ensure_ascii=False, indent=2))
     return 0
 
 
 if __name__ == "__main__":
     sys.exit(main())
-
-

@@ -14,6 +14,43 @@ IMAGEGEN_BASE_URL=
 
 The script automatically reads `.env` from the current working directory or the skill directory. Environment variables still work and take priority over `.env` values.
 
+For multiple providers or relay URLs, configure named profiles:
+
+```dotenv
+IMAGEGEN_PROFILE=openai
+
+IMAGEGEN_PROFILE_OPENAI_API_KEY=your-openai-api-key
+IMAGEGEN_PROFILE_OPENAI_MODEL=your-openai-image-model
+IMAGEGEN_PROFILE_OPENAI_BASE_URL=https://api.openai.com
+
+IMAGEGEN_PROFILE_RELAY_API_KEY=your-relay-api-key
+IMAGEGEN_PROFILE_RELAY_MODEL=your-relay-image-model
+IMAGEGEN_PROFILE_RELAY_BASE_URL=https://relay.example.com
+```
+
+Select a profile per call:
+
+```bash
+python scripts/generate_image.py \
+  --profile relay \
+  --prompt "A watercolor mountain village"
+```
+
+Profile names are selected with `--profile <name>` or `IMAGEGEN_PROFILE=<name>`. The environment variable form uppercases the name and converts non-alphanumeric characters to underscores, so `--profile openai-relay` reads `IMAGEGEN_PROFILE_OPENAI_RELAY_API_KEY`, `IMAGEGEN_PROFILE_OPENAI_RELAY_MODEL`, and `IMAGEGEN_PROFILE_OPENAI_RELAY_BASE_URL`.
+
+Configuration priority is:
+
+1. Explicit command-line values such as `--api-key`, `--model`, `--base-url`, and `--endpoint`.
+2. Selected profile values such as `IMAGEGEN_PROFILE_RELAY_API_KEY`.
+3. Legacy global values such as `IMAGEGEN_API_KEY`, `IMAGEGEN_MODEL`, and `IMAGEGEN_BASE_URL`.
+4. Built-in default base URL, `https://api.openai.com`.
+
+Inspect configured profile names without exposing secrets:
+
+```bash
+python scripts/generate_image.py --list-profiles
+```
+
 Use shell environment variables when preferred:
 
 ```bash
@@ -97,7 +134,10 @@ python scripts/generate_image.py \
   --base-url "$IMAGEGEN_BASE_URL"
 ```
 
+Or use a named profile:
+
+```bash
+python scripts/generate_image.py --profile relay --list-models
+```
+
 Use the model id exactly as returned by the service. If the advertised model is unavailable for generation, ask the provider for the exact model id, required endpoint, account entitlement, and supported request payload.
-
-
-
