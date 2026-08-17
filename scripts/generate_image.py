@@ -19,7 +19,35 @@ from typing import Any
 
 
 DEFAULT_BASE_URL = "https://api.openai.com"
-SKILL_DIR = Path(__file__).resolve().parent.parent
+SKILL_NAME = "iga"
+SCRIPT_DIR = Path(__file__).resolve().parent.parent
+
+
+def _codex_home() -> Path:
+    configured = os.environ.get("CODEX_HOME")
+    if configured:
+        return Path(configured).expanduser()
+    return Path.home() / ".codex"
+
+
+def _candidate_skill_dirs() -> list[Path]:
+    candidates: list[Path] = []
+    configured = os.environ.get("IGA_SKILL_DIR")
+    if configured:
+        candidates.append(Path(configured).expanduser())
+    candidates.append(_codex_home() / "skills" / SKILL_NAME)
+    candidates.append(SCRIPT_DIR)
+    return list(dict.fromkeys(candidates))
+
+
+def _resolve_skill_dir() -> Path:
+    for directory in _candidate_skill_dirs():
+        if (directory / "SKILL.md").exists():
+            return directory
+    return SCRIPT_DIR
+
+
+SKILL_DIR = _resolve_skill_dir()
 
 
 def _load_dotenv() -> None:
@@ -89,14 +117,19 @@ def _default_output(prompt: str) -> Path:
 
 
 def _outputs_dir() -> Path:
+    configured = _env_first("IGA_OUTPUT_DIR")
+    if configured:
+        return Path(configured).expanduser()
     return SKILL_DIR / "outputs"
 
 
 def _show_paths() -> None:
     print(json.dumps({
         "skill_dir": str(SKILL_DIR.resolve()),
+        "script_dir": str(SCRIPT_DIR.resolve()),
         "outputs_dir": str(_outputs_dir().resolve()),
         "cwd": str(Path.cwd().resolve()),
+        "skill_dir_candidates": [str(path.resolve()) for path in _candidate_skill_dirs()],
         "dotenv_candidates": [
             str((Path.cwd() / ".env").resolve()),
             str((SKILL_DIR / ".env").resolve()),

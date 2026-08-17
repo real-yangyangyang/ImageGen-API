@@ -14,6 +14,7 @@ Use this skill to generate images through a user-configured image API. The bundl
    - API key: from `.env`, `IMAGEGEN_API_KEY`, `OPENAI_API_KEY`, or an explicit `--api-key`.
    - Model: from `.env`, `IMAGEGEN_MODEL`, or an explicit `--model`.
    - Base URL: optional `.env`, `IMAGEGEN_BASE_URL`, `OPENAI_BASE_URL`, or `--base-url`.
+   - Output directory: optional `.env` or `IGA_OUTPUT_DIR`; defaults to the installed skill `outputs/`.
 2. Never write API keys into files, logs, examples, or final messages. Prefer temporary environment variables or command arguments only when the user explicitly supplies them in the session.
 3. Run `scripts/generate_image.py` for the actual API call.
 4. Return the generated file path and, when the host supports images, render the image with Markdown. Do not list, read, or summarize existing files in `outputs/` during normal generation.
@@ -58,12 +59,13 @@ Read `references/configuration.md` only when troubleshooting a provider, relay U
 
 ## Outputs
 
-Generated images are saved to the `outputs/` directory of the skill copy that is actually executed, so users can recover prior images. Treat this folder as isolated local history:
+Generated images are saved to the installed skill directory (`~/.codex/skills/iga/outputs/`) by default, so users can recover prior images even when Codex executes a temporary skill copy inside a task workspace. If `IGA_OUTPUT_DIR` is set, use that directory instead. Treat the outputs folder as isolated local history:
 - Do not read or list `outputs/` during normal image generation.
 - Access `outputs/` only when the user explicitly asks to find, list, recover, or clean generated images.
 - Use `python scripts/generate_image.py --list-outputs` to list saved images.
 - Use `python scripts/generate_image.py --clean-outputs` to delete saved images.
 - Use `python scripts/generate_image.py --show-paths` to show the active skill directory and `outputs/` location.
+
 ## Built-In Adapter
 
 The bundled script targets OpenAI-compatible image-generation APIs:
@@ -74,6 +76,7 @@ The bundled script targets OpenAI-compatible image-generation APIs:
 ## Extending Providers
 
 If a provider uses a different native API, extend the script with a small provider adapter instead of hardcoding secrets or model-specific behavior in `SKILL.md`. Keep each adapter responsible for only the provider-specific request and response mapping, and preserve the same user-facing workflow: prompt in, image file path out.
+
 
 
 

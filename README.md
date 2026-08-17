@@ -78,7 +78,7 @@ python scripts/generate_image.py \
 
 ### 图片保存与清理
 
-默认生成图片会保存到当前实际执行的 skill 目录下的 `outputs/`。仓库保留 `outputs/.gitkeep`，真实图片会被 `.gitignore` 忽略。
+默认生成图片会保存到已安装的 skill 目录：`~/.codex/skills/iga/outputs/`。Codex 可能会在任务目录中执行一份临时副本，但脚本会优先定位已安装目录，避免图片落到临时任务文件夹。仓库保留 `outputs/.gitkeep`，真实图片会被 `.gitignore` 忽略。若需要自定义保存位置，可在 `.env` 中设置 `IGA_OUTPUT_DIR`。
 
 ```bash
 python scripts/generate_image.py --show-paths
@@ -178,7 +178,7 @@ python scripts/generate_image.py \
 
 ### Image Storage And Cleanup
 
-Generated images are saved by default in the `outputs/` directory of the skill copy that is actually executed. The repository keeps `outputs/.gitkeep`; real image files are ignored by `.gitignore`.
+Generated images are saved by default under the installed skill directory: `~/.codex/skills/iga/outputs/`. Codex may execute a temporary copy inside a task workspace, but the script prefers the installed skill directory so images do not land in temporary task folders. The repository keeps `outputs/.gitkeep`; real image files are ignored by `.gitignore`. To override the save location, set `IGA_OUTPUT_DIR` in `.env`.
 
 ```bash
 python scripts/generate_image.py --show-paths
@@ -207,4 +207,5 @@ python scripts/generate_image.py --clean-outputs
 - `.env.example` should contain placeholders only and is safe to commit.
 - Prompts, model names, and request parameters are sent to the configured API provider or relay.
 - This project does not include telemetry, analytics, or additional callbacks.
+
 
